@@ -54,7 +54,7 @@ void Watchy::deepSleep() {
   display.hibernate();
   displayFullInit = false; // Notify not to init it again
   RTC.clearAlarm();        // resets the alarm flag in the RTC
-                    // Set pins 0-39 to input to avoid power leaking out
+                           // Set pins 0-39 to input to avoid power leaking out
   for (int i = 0; i < 40; i++) {
     pinMode(i, INPUT);
   }
@@ -66,6 +66,50 @@ void Watchy::deepSleep() {
   esp_deep_sleep_start();
 }
 
+bool Watchy::handleBackButton() {
+  switch (guiState) {
+  case MAIN_MENU_STATE:
+    // exit to watch face if already in menu
+    RTC.read(currentTime);
+    showWatchFace(false);
+    return true;
+  case APP_STATE:
+  case FW_UPDATE_STATE:
+    showMenu(menuIndex, false); // exit to menu if already in app
+    break;
+  case default:
+    break;
+  }
+  return false;
+}
+
+void Watchy::handleUpButton(bool fastmenu) {
+  handleDirectionButton(true, fastmenu);
+}
+
+void Watchy::handleDownButton(bool fastmenu) {
+  handleDirectionButton(false, fastmenu);
+}
+
+void Watchy::handleDirectionButton(bool is_up, bool fastmenu) {
+  if (guiState != MAIN_MENU_STATE) { // increment menu index
+    break;
+  }
+
+  menuIndex += is_up ? -1 : 1;
+  if (menuIndex < 0) {
+    menuIndex = MENU_LENGTH - 1;
+  } else if (menuIndex > MENU_LENGTH - 1) {
+    menuIndex = 0;
+  }
+
+  if (fastmenu) {
+    showMenu(menuIndex, true);
+  } else {
+    showFastMenu(menuIndex);
+  }
+}
+
 void Watchy::handleButtonPress() {
   uint64_t wakeupBit = esp_sleep_get_ext1_wakeup_status();
   // Menu Button
@@ -75,71 +119,17 @@ void Watchy::handleButtonPress() {
       showMenu(menuIndex, false);
     } else if (guiState ==
                MAIN_MENU_STATE) { // if already in menu, then select menu item
-      switch (menuIndex) {
-      case 0:
-        showAbout();
-        break;
-      case 1:
-        showBuzz();
-        break;
-      case 2:
-        showAccelerometer();
-        break;
-      case 3:
-        setTime();
-        break;
-      case 4:
-        setupWifi();
-        break;
-      case 5:
-        showUpdateFW();
-        break;
-      case 6:
-        showSyncNTP();
-        break;
-      default:
-        break;
-      }
-    } else if (guiState == FW_UPDATE_STATE) {
-      updateFWBegin();
+      handleMenu();
     }
-  }
-  // Back Button
-  else if (wakeupBit & BACK_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // exit to watch face if already in menu
-      RTC.read(currentTime);
-      showWatchFace(false);
-    } else if (guiState == APP_STATE) {
-      showMenu(menuIndex, false); // exit to menu if already in app
-    } else if (guiState == FW_UPDATE_STATE) {
-      showMenu(menuIndex, false); // exit to menu if already in app
-    } else if (guiState == WATCHFACE_STATE) {
-      return;
-    }
-  }
-  // Up Button
-  else if (wakeupBit & UP_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // increment menu index
-      menuIndex--;
-      if (menuIndex < 0) {
-        menuIndex = MENU_LENGTH - 1;
-      }
-      showMenu(menuIndex, true);
-    } else if (guiState == WATCHFACE_STATE) {
-      return;
-    }
-  }
-  // Down Button
-  else if (wakeupBit & DOWN_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // decrement menu index
-      menuIndex++;
-      if (menuIndex > MENU_LENGTH - 1) {
-        menuIndex = 0;
-      }
-      showMenu(menuIndex, true);
-    } else if (guiState == WATCHFACE_STATE) {
-      return;
-    }
+  } else if (wakeupBit & BACK_BTN_MASK) {
+    // Back Button
+    handleButtonPress();
+  } else if (wakeupBit & UP_BTN_MASK) {
+    // Up Button
+    handleUpButton(false);
+  } else if (wakeupBit & DOWN_BTN_MASK) {
+    // Down Button
+    handleDownButton(false);
   }
 
   /***************** fast menu *****************/
@@ -152,71 +142,59 @@ void Watchy::handleButtonPress() {
   while (!timeout) {
     if (millis() - lastTimeout > 5000) {
       timeout = true;
-    } else {
-      if (digitalRead(MENU_BTN_PIN) == 1) {
-        lastTimeout = millis();
-        if (guiState ==
-            MAIN_MENU_STATE) { // if already in menu, then select menu item
-          switch (menuIndex) {
-          case 0:
-            showAbout();
-            break;
-          case 1:
-            showBuzz();
-            break;
-          case 2:
-            showAccelerometer();
-            break;
-          case 3:
-            setTime();
-            break;
-          case 4:
-            setupWifi();
-            break;
-          case 5:
-            showUpdateFW();
-            break;
-          case 6:
-            showSyncNTP();
-            break;
-          default:
-            break;
-          }
-        } else if (guiState == FW_UPDATE_STATE) {
-          updateFWBegin();
-        }
-      } else if (digitalRead(BACK_BTN_PIN) == 1) {
-        lastTimeout = millis();
-        if (guiState ==
-            MAIN_MENU_STATE) { // exit to watch face if already in menu
-          RTC.read(currentTime);
-          showWatchFace(false);
-          break; // leave loop
-        } else if (guiState == APP_STATE) {
-          showMenu(menuIndex, false); // exit to menu if already in app
-        } else if (guiState == FW_UPDATE_STATE) {
-          showMenu(menuIndex, false); // exit to menu if already in app
-        }
-      } else if (digitalRead(UP_BTN_PIN) == 1) {
-        lastTimeout = millis();
-        if (guiState == MAIN_MENU_STATE) { // increment menu index
-          menuIndex--;
-          if (menuIndex < 0) {
-            menuIndex = MENU_LENGTH - 1;
-          }
-          showFastMenu(menuIndex);
-        }
-      } else if (digitalRead(DOWN_BTN_PIN) == 1) {
-        lastTimeout = millis();
-        if (guiState == MAIN_MENU_STATE) { // decrement menu index
-          menuIndex++;
-          if (menuIndex > MENU_LENGTH - 1) {
-            menuIndex = 0;
-          }
-          showFastMenu(menuIndex);
-        }
-      }
+      continue;
     }
+
+    if (digitalRead(MENU_BTN_PIN) == 1) {
+      lastTimeout = millis();
+      handleMenu();
+    } else if (digitalRead(BACK_BTN_PIN) == 1) {
+      lastTimeout       = millis();
+      bool exit_to_menu = handleBackButton();
+      if (exit_to_menu) {
+        // exit the loop if we moved to the menu
+        break;
+      }
+    } else if (digitalRead(UP_BTN_PIN) == 1) {
+      lastTimeout = millis();
+      handleUpButton(true);
+    } else if (digitalRead(DOWN_BTN_PIN) == 1) {
+      lastTimeout = millis();
+      handleDownButton(true);
+    }
+  }
+}
+
+void Watchy::handleMenu() {
+  if (guiState ==
+      MAIN_MENU_STATE) { // if already in menu, then select menu item
+    switch (menuIndex) {
+    case 0:
+      showAbout();
+      break;
+    case 1:
+      showBuzz();
+      break;
+    case 2:
+      showAccelerometer();
+      break;
+    case 3:
+      setTime();
+      break;
+    case 4:
+      setupWifi();
+      break;
+    case 5:
+      showUpdateFW();
+      break;
+    case 6:
+      showSyncNTP();
+      break;
+    default:
+      break;
+    }
+  } else if (guiState == FW_UPDATE_STATE) {
+    updateFWBegin();
   }
 }
 
@@ -585,53 +563,62 @@ weatherData Watchy::getWeatherData() {
                         settings.weatherAPIKey, settings.weatherUpdateInterval);
 }
 
-weatherData Watchy::getWeatherData(String cityID, String units, String lang, String url, String apiKey, uint8_t updateInterval){
-    currentWeather.isMetric = units == String("metric");
-    if(weatherIntervalCounter < 0){ //-1 on first run, set to updateInterval
-        weatherIntervalCounter = updateInterval;
-    }
-    if(weatherIntervalCounter >= updateInterval){ //only update if WEATHER_UPDATE_INTERVAL has elapsed i.e. 30 minutes
-        if(connectWiFi()){
-            HTTPClient http; //Use Weather API for live data if WiFi is connected
-            http.setConnectTimeout(3000);//3 second max timeout
-            String weatherQueryURL = url + cityID + String("&units=") + units + String("&lang=") + lang + String("&appid=") + apiKey;
-            http.begin(weatherQueryURL.c_str());
-            int httpResponseCode = http.GET();
-            if(httpResponseCode == 200) {
-                String payload = http.getString();
-                DynamicJsonDocument doc(1024);
-                auto error = deserializeJson(doc, payload);
-                if (!error) {
-                    currentWeather.temperature = doc["main"]["temp"].as<int>();
-                    currentWeather.weatherConditionCode = doc["weather"][0]["id"].as<int>();
-                    currentWeather.weatherDescription = doc["weather"][0]["main"].as<const char *>();
-                } else {
-                    Serial.println(error.c_str());
-                }
-            }else{
-                //http error
-            }
-            http.end();
-            //turn off radios
-            WiFi.mode(WIFI_OFF);
-            btStop();
-        }else{//No WiFi, use internal temperature sensor
-            uint8_t temperature = sensor.readTemperature(); //celsius
-            if(!currentWeather.isMetric){
-                temperature = temperature * 9. / 5. + 32.; //fahrenheit
-            }
-            currentWeather.temperature = temperature;
-            currentWeather.weatherConditionCode = 800;
+weatherData Watchy::getWeatherData(String cityID, String units, String lang,
+                                   String url, String apiKey,
+                                   uint8_t updateInterval) {
+  currentWeather.isMetric = units == String("metric");
+  if (weatherIntervalCounter < 0) { //-1 on first run, set to updateInterval
+    weatherIntervalCounter = updateInterval;
+  }
+  if (weatherIntervalCounter >=
+      updateInterval) { // only update if WEATHER_UPDATE_INTERVAL has elapsed
+                        // i.e. 30 minutes
+    if (connectWiFi()) {
+      HTTPClient http; // Use Weather API for live data if WiFi is connected
+      http.setConnectTimeout(3000); // 3 second max timeout
+      String weatherQueryURL = url + cityID + String("&units=") + units +
+                               String("&lang=") + lang + String("&appid=") +
+                               apiKey;
+      http.begin(weatherQueryURL.c_str());
+      int httpResponseCode = http.GET();
+      if (httpResponseCode == 200) {
+        String payload = http.getString();
+        DynamicJsonDocument doc(1024);
+        auto error = deserializeJson(doc, payload);
+        if (!error) {
+          currentWeather.temperature = doc["main"]["temp"].as<int>();
+          currentWeather.weatherConditionCode =
+              doc["weather"][0]["id"].as<int>();
+          currentWeather.weatherDescription =
+              doc["weather"][0]["main"].as<const char *>();
+        } else {
+          Serial.println(error.c_str());
         }
-        weatherIntervalCounter = 0;
-    }else{
-        weatherIntervalCounter++;
+      } else {
+        // http error
+      }
+      http.end();
+      // turn off radios
+      WiFi.mode(WIFI_OFF);
+      btStop();
+    } else { // No WiFi, use internal temperature sensor
+      uint8_t temperature = sensor.readTemperature(); // celsius
+      if (!currentWeather.isMetric) {
+        temperature = temperature * 9. / 5. + 32.; // fahrenheit
+      }
+      currentWeather.temperature          = temperature;
+      currentWeather.weatherConditionCode = 800;
     }
     weatherIntervalCounter = 0;
   } else {
     weatherIntervalCounter++;
   }
-  return currentWeather;
+  weatherIntervalCounter = 0;
+}
+else {
+  weatherIntervalCounter++;
+}
+return currentWeather;
 }
 
 float Watchy::getBatteryVoltage() {
@@ -698,7 +685,8 @@ void Watchy::_bmaConfig() {
   */
   cfg.range = BMA4_ACCEL_RANGE_2G;
   /*!
-      Bandwidth parameter, determines filter configuration, Optional parameters:
+      Bandwidth parameter, determines filter configuration, Optional
+     parameters:
           - BMA4_ACCEL_OSR4_AVG1
           - BMA4_ACCEL_OSR2_AVG2
           - BMA4_ACCEL_NORMAL_AVG4
@@ -802,8 +790,8 @@ void Watchy::_configModeCallback(WiFiManager *myWiFiManager) {
 
 bool Watchy::connectWiFi() {
   if (WL_CONNECT_FAILED ==
-      WiFi.begin()) { // WiFi not setup, you can also use hard coded credentials
-                      // with WiFi.begin(SSID,PASS);
+      WiFi.begin()) { // WiFi not setup, you can also use hard coded
+                      // credentials with WiFi.begin(SSID,PASS);
     WIFI_CONFIGURED = false;
   } else {
     if (WL_CONNECTED ==
@@ -973,15 +961,17 @@ bool Watchy::syncNTP() { // NTP sync - call after connecting to WiFi and
                  settings.ntpServer.c_str());
 }
 
-bool Watchy::syncNTP(long gmt, int dst, String ntpServer){ //NTP sync - call after connecting to WiFi and remember to turn it back off
-    WiFiUDP ntpUDP;
-    NTPClient timeClient(ntpUDP, ntpServer.c_str(), gmt);
-    timeClient.begin();
-    if(!timeClient.forceUpdate()){
-        return false; //NTP sync failed
-    }
-    tmElements_t tm;
-    breakTime((time_t)timeClient.getEpochTime(), tm);
-    RTC.set(tm);
-    return true;
+bool Watchy::syncNTP(long gmt, int dst,
+                     String ntpServer) { // NTP sync - call after connecting to
+                                         // WiFi and remember to turn it back off
+  WiFiUDP ntpUDP;
+  NTPClient timeClient(ntpUDP, ntpServer.c_str(), gmt);
+  timeClient.begin();
+  if (!timeClient.forceUpdate()) {
+    return false; // NTP sync failed
+  }
+  tmElements_t tm;
+  breakTime((time_t)timeClient.getEpochTime(), tm);
+  RTC.set(tm);
+  return true;
 }

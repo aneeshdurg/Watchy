@@ -53,6 +53,11 @@ public:
   void vibMotor(uint8_t intervalMs = 100, uint8_t length = 20);
 
   void handleButtonPress();
+  bool handleBackButton();
+  void handleUpButton(bool fastmenu);
+  void handleDownButton(bool fastmenu);
+  void handleDirectionButton(bool is_up, bool fastmenu);
+
   void showMenu(byte menuIndex, bool partialRefresh);
   void showFastMenu(byte menuIndex);
   void showAbout();
@@ -73,6 +78,7 @@ public:
   void showWatchFace(bool partialRefresh);
   virtual void drawWatchFace(); // override this method for different watch
                                 // faces
+  void handleMenu();
 
 private:
   void _bmaConfig();
