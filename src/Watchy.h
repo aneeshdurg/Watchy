@@ -7,13 +7,13 @@
 #include "bma.h"
 #include "config.h"
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include <GxEPD2_BW.h>
 #include <HTTPClient.h>
 #include <NTPClient.h>
 #include <WiFiManager.h>
 #include <WiFiUdp.h>
-#include <ArduinoJson.h>
 #include <Wire.h>
 
 typedef struct weatherData {

@@ -28,16 +28,19 @@ void WatchyRTC::config(
   }
 }
 
-void WatchyRTC::clearAlarm(){
-    if(rtcType == DS3231){
-        rtc_ds.alarm(ALARM_2);
-    }else{
-        int nextAlarmMinute = 0;
-        rtc_pcf.clearAlarm(); //resets the alarm flag in the RTC
-        nextAlarmMinute = rtc_pcf.getMinute();
-        nextAlarmMinute = (nextAlarmMinute == 59) ? 0 : (nextAlarmMinute + 1); //set alarm to trigger 1 minute from now
-        rtc_pcf.setAlarm(nextAlarmMinute, 99, 99, 99);
-    }
+void WatchyRTC::clearAlarm() {
+  if (rtcType == DS3231) {
+    rtc_ds.alarm(ALARM_2);
+  } else {
+    int nextAlarmMinute = 0;
+    rtc_pcf.clearAlarm(); // resets the alarm flag in the RTC
+    nextAlarmMinute = rtc_pcf.getMinute();
+    nextAlarmMinute =
+        (nextAlarmMinute == 59)
+            ? 0
+            : (nextAlarmMinute + 1); // set alarm to trigger 1 minute from now
+    rtc_pcf.setAlarm(nextAlarmMinute, 99, 99, 99);
+  }
 }
 
 void WatchyRTC::read(tmElements_t &tm) {
@@ -82,22 +85,25 @@ uint8_t WatchyRTC::temperature() {
   }
 }
 
-void WatchyRTC::_DSConfig(String datetime){ //String datetime is YYYY:MM:DD:HH:MM:SS
-    if(datetime != ""){
-        tmElements_t tm;
-        tm.Year = CalendarYrToTm(_getValue(datetime, ':', 0).toInt()); //YYYY - 1970
-        tm.Month = _getValue(datetime, ':', 1).toInt();
-        tm.Day = _getValue(datetime, ':', 2).toInt();
-        tm.Hour = _getValue(datetime, ':', 3).toInt();
-        tm.Minute = _getValue(datetime, ':', 4).toInt();
-        tm.Second = _getValue(datetime, ':', 5).toInt();
-        time_t t = makeTime(tm);
-        rtc_ds.set(t);
-    }
-    //https://github.com/JChristensen/DS3232RTC
-    rtc_ds.squareWave(SQWAVE_NONE); //disable square wave output
-    rtc_ds.setAlarm(ALM2_EVERY_MINUTE, 0, 0, 0, 0); //alarm wakes up Watchy every minute
-    rtc_ds.alarmInterrupt(ALARM_2, true); //enable alarm interrupt
+void WatchyRTC::_DSConfig(
+    String datetime) { // String datetime is YYYY:MM:DD:HH:MM:SS
+  if (datetime != "") {
+    tmElements_t tm;
+    tm.Year = CalendarYrToTm(_getValue(datetime, ':', 0).toInt()); // YYYY -
+                                                                   // 1970
+    tm.Month  = _getValue(datetime, ':', 1).toInt();
+    tm.Day    = _getValue(datetime, ':', 2).toInt();
+    tm.Hour   = _getValue(datetime, ':', 3).toInt();
+    tm.Minute = _getValue(datetime, ':', 4).toInt();
+    tm.Second = _getValue(datetime, ':', 5).toInt();
+    time_t t  = makeTime(tm);
+    rtc_ds.set(t);
+  }
+  // https://github.com/JChristensen/DS3232RTC
+  rtc_ds.squareWave(SQWAVE_NONE); // disable square wave output
+  rtc_ds.setAlarm(ALM2_EVERY_MINUTE, 0, 0, 0,
+                  0);                   // alarm wakes up Watchy every minute
+  rtc_ds.alarmInterrupt(ALARM_2, true); // enable alarm interrupt
 }
 
 void WatchyRTC::_PCFConfig(
