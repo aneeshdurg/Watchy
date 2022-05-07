@@ -54,7 +54,7 @@ void Watchy::deepSleep() {
   display.hibernate();
   displayFullInit = false; // Notify not to init it again
   RTC.clearAlarm();        // resets the alarm flag in the RTC
-                    // Set pins 0-39 to input to avoid power leaking out
+                           // Set pins 0-39 to input to avoid power leaking out
   for (int i = 0; i < 40; i++) {
     pinMode(i, INPUT);
   }
@@ -70,50 +70,12 @@ void Watchy::handleButtonPress() {
   uint64_t wakeupBit = esp_sleep_get_ext1_wakeup_status();
   // Menu Button
   if (wakeupBit & MENU_BTN_MASK) {
-    if (guiState ==
-        WATCHFACE_STATE) { // enter menu state if coming from watch face
-      showMenu(menuIndex, false);
-    } else if (guiState ==
-               MAIN_MENU_STATE) { // if already in menu, then select menu item
-      switch (menuIndex) {
-      case 0:
-        showAbout();
-        break;
-      case 1:
-        showBuzz();
-        break;
-      case 2:
-        showAccelerometer();
-        break;
-      case 3:
-        setTime();
-        break;
-      case 4:
-        setupWifi();
-        break;
-      case 5:
-        showUpdateFW();
-        break;
-      case 6:
-        showSyncNTP();
-        break;
-      default:
-        break;
-      }
-    } else if (guiState == FW_UPDATE_STATE) {
-      updateFWBegin();
-    }
+    handleMenuButtonPress();
   }
   // Back Button
   else if (wakeupBit & BACK_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // exit to watch face if already in menu
-      RTC.read(currentTime);
-      showWatchFace(false);
-    } else if (guiState == APP_STATE) {
-      showMenu(menuIndex, false); // exit to menu if already in app
-    } else if (guiState == FW_UPDATE_STATE) {
-      showMenu(menuIndex, false); // exit to menu if already in app
-    } else if (guiState == WATCHFACE_STATE) {
+    handleBackButtonPress();
+    if (guiState == WATCHFACE_STATE) {
       return;
     }
   }
@@ -155,47 +117,13 @@ void Watchy::handleButtonPress() {
     } else {
       if (digitalRead(MENU_BTN_PIN) == 1) {
         lastTimeout = millis();
-        if (guiState ==
-            MAIN_MENU_STATE) { // if already in menu, then select menu item
-          switch (menuIndex) {
-          case 0:
-            showAbout();
-            break;
-          case 1:
-            showBuzz();
-            break;
-          case 2:
-            showAccelerometer();
-            break;
-          case 3:
-            setTime();
-            break;
-          case 4:
-            setupWifi();
-            break;
-          case 5:
-            showUpdateFW();
-            break;
-          case 6:
-            showSyncNTP();
-            break;
-          default:
-            break;
-          }
-        } else if (guiState == FW_UPDATE_STATE) {
-          updateFWBegin();
-        }
+        handleMenuButtonPress();
       } else if (digitalRead(BACK_BTN_PIN) == 1) {
         lastTimeout = millis();
+        handleBackButtonPress();
         if (guiState ==
             MAIN_MENU_STATE) { // exit to watch face if already in menu
-          RTC.read(currentTime);
-          showWatchFace(false);
-          break; // leave loop
-        } else if (guiState == APP_STATE) {
-          showMenu(menuIndex, false); // exit to menu if already in app
-        } else if (guiState == FW_UPDATE_STATE) {
-          showMenu(menuIndex, false); // exit to menu if already in app
+          break;               // leave loop
         }
       } else if (digitalRead(UP_BTN_PIN) == 1) {
         lastTimeout = millis();
@@ -217,6 +145,55 @@ void Watchy::handleButtonPress() {
         }
       }
     }
+  }
+}
+
+void Watchy::handleMenuButtonPress() {
+  if (guiState ==
+      WATCHFACE_STATE) { // enter menu state if coming from watch face
+    showMenu(menuIndex, false);
+  } else if (guiState ==
+             MAIN_MENU_STATE) { // if already in menu, then select menu item
+    switch (menuIndex) {
+    case 0:
+      showAbout();
+      break;
+    case 1:
+      showBuzz();
+      break;
+    case 2:
+      showAccelerometer();
+      break;
+    case 3:
+      setTime();
+      break;
+    case 4:
+      setupWifi();
+      break;
+    case 5:
+      showUpdateFW();
+      break;
+    case 6:
+      showSyncNTP();
+      break;
+    default:
+      break;
+    }
+  } else if (guiState == FW_UPDATE_STATE) {
+    updateFWBegin();
+  }
+}
+
+void Watchy::handleBackButtonPress() {
+  if (guiState == MAIN_MENU_STATE) { // exit to watch face if already in menu
+    RTC.read(currentTime);
+    showWatchFace(false);
+  } else if (guiState == APP_STATE) {
+    showMenu(menuIndex, false); // exit to menu if already in app
+  } else if (guiState == FW_UPDATE_STATE) {
+    showMenu(menuIndex, false); // exit to menu if already in app
+  } else if (guiState == WATCHFACE_STATE) {
+    return;
   }
 }
 
@@ -972,9 +949,10 @@ bool Watchy::syncNTP() { // NTP sync - call after connecting to WiFi and
                  settings.ntpServer.c_str());
 }
 
-bool Watchy::syncNTP(long gmt, int dst,
-                     String ntpServer) { // NTP sync - call after connecting to
-                                         // WiFi and remember to turn it back off
+bool Watchy::syncNTP(
+    long gmt, int dst,
+    String ntpServer) { // NTP sync - call after connecting to
+                        // WiFi and remember to turn it back off
   WiFiUDP ntpUDP;
   NTPClient timeClient(ntpUDP, ntpServer.c_str(), gmt);
   timeClient.begin();
