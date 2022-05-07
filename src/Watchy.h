@@ -2,17 +2,21 @@
 #define WATCHY_H
 
 #include <Arduino.h>
-#include <WiFiManager.h>
+#include <Arduino_JSON.h>
 #include <HTTPClient.h>
 #include <NTPClient.h>
+#include <WiFiManager.h>
 #include <WiFiUdp.h>
-#include <Arduino_JSON.h>
-#include <GxEPD2_BW.h>
 #include <Wire.h>
+#include <GxEPD2_BW.h>
+
+// N.B. this isn't part of the sorted include list above because it MUST be
+// included after GxEPD2_BW.h
 #include <Fonts/FreeMonoBold9pt7b.h>
+
+#include "BLE.h"
 #include "DSEG7_Classic_Bold_53.h"
 #include "WatchyRTC.h"
-#include "BLE.h"
 #include "bma.h"
 #include "config.h"
 
