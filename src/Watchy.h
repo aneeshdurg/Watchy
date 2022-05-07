@@ -55,6 +55,9 @@ public:
   void handleButtonPress();
   void handleMenuButtonPress();
   void handleBackButtonPress();
+  void handleUpButtonPress(bool fastmenu);
+  void handleDownButtonPress(bool fastmenu);
+  void handleDirectionButtonPress(bool is_up, bool fastmenu);
 
   void showMenu(byte menuIndex, bool partialRefresh);
   void showFastMenu(byte menuIndex);

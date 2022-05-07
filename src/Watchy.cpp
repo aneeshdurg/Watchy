@@ -81,25 +81,15 @@ void Watchy::handleButtonPress() {
   }
   // Up Button
   else if (wakeupBit & UP_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // increment menu index
-      menuIndex--;
-      if (menuIndex < 0) {
-        menuIndex = MENU_LENGTH - 1;
-      }
-      showMenu(menuIndex, true);
-    } else if (guiState == WATCHFACE_STATE) {
+    handleUpButtonPress(false);
+    if (guiState == WATCHFACE_STATE) {
       return;
     }
   }
   // Down Button
   else if (wakeupBit & DOWN_BTN_MASK) {
-    if (guiState == MAIN_MENU_STATE) { // decrement menu index
-      menuIndex++;
-      if (menuIndex > MENU_LENGTH - 1) {
-        menuIndex = 0;
-      }
-      showMenu(menuIndex, true);
-    } else if (guiState == WATCHFACE_STATE) {
+    handleDownButtonPress(false);
+    if (guiState == WATCHFACE_STATE) {
       return;
     }
   }
@@ -127,22 +117,10 @@ void Watchy::handleButtonPress() {
         }
       } else if (digitalRead(UP_BTN_PIN) == 1) {
         lastTimeout = millis();
-        if (guiState == MAIN_MENU_STATE) { // increment menu index
-          menuIndex--;
-          if (menuIndex < 0) {
-            menuIndex = MENU_LENGTH - 1;
-          }
-          showFastMenu(menuIndex);
-        }
+        handleUpButtonPress(true);
       } else if (digitalRead(DOWN_BTN_PIN) == 1) {
         lastTimeout = millis();
-        if (guiState == MAIN_MENU_STATE) { // decrement menu index
-          menuIndex++;
-          if (menuIndex > MENU_LENGTH - 1) {
-            menuIndex = 0;
-          }
-          showFastMenu(menuIndex);
-        }
+        handleDownButtonPress(true);
       }
     }
   }
@@ -194,6 +172,33 @@ void Watchy::handleBackButtonPress() {
     showMenu(menuIndex, false); // exit to menu if already in app
   } else if (guiState == WATCHFACE_STATE) {
     return;
+  }
+}
+
+void Watchy::handleUpButtonPress(bool fastmenu) {
+  handleDirectionButton(true, fastmenu);
+}
+
+void Watchy::handleDownButtonPress(bool fastmenu) {
+  handleDirectionButton(false, fastmenu);
+}
+
+void Watchy::handleDirectionButtonPress(bool is_up, bool fastmenu) {
+  if (guiState != MAIN_MENU_STATE) { // increment menu index
+    break;
+  }
+
+  menuIndex += is_up ? -1 : 1;
+  if (menuIndex < 0) {
+    menuIndex = MENU_LENGTH - 1;
+  } else if (menuIndex > MENU_LENGTH - 1) {
+    menuIndex = 0;
+  }
+
+  if (fastmenu) {
+    showMenu(menuIndex, true);
+  } else {
+    showFastMenu(menuIndex);
   }
 }
 
